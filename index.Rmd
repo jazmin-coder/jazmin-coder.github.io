@@ -1,0 +1,8 @@
+---
+title: "Index"
+author: "Jazmin Calimano Colon"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Welcome to my data analysis portfolio. I have projects, practice exercises, and blog posts.

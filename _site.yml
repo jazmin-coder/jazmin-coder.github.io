@@ -1,0 +1,11 @@
+name: "Jazmin's website"
+navbar:
+  title: "Jazmin Calimano Colon"
+  left:
+    - text: "Home"
+      href: index.html 
+    - text: "About"
+      href: about.html
+    - text: "Research"
+      href: research.html
+output_dir: 'docs'

@@ -1,0 +1,345 @@
+---
+title: "Research"
+author: "Jazmin Calimano Colon"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    self_contained: true
+---
+## Part I
+
+In this section, I will tidy the datasets containing race and income information on Young Adult Migration in the United States.
+
+```{r}
+#Load libraries
+pacman::p_load(tidyverse, dplyr, skimr)
+
+#Read csv files
+income <- read.csv("data/data_income.csv")
+race <- read.csv("data/data_race.csv")
+
+```
+
+### Tidying the race dataset.
+
+***Q1 What is the unit of observation? \[2 points\]***
+
+The unit of observation is the origin-to-destination pair, in other words, the starting and ending locations of the individuals after 10 years.
+
+***Q2 What variables are in the data? \[2 points\]***
+
+```{r}
+colnames(race)
+```
+
+***Q3 Is the dataset tidy? Why / Why not? \[4 points\]***
+
+The dataset is not tidy because there isn't a single observation per row. The "unique" column contains two id variables for the origin city and destination city that could be separated into their own columns. The "race" column could also be expanded so that each categorical variable within has its own column with the corresponding population of young adults as its values.
+
+***Q4 Tidy the data_race dataset. \[6 points\]***
+
+```{r}
+glimpse(race)
+
+race <- race %>% 
+  separate(col = unique,
+           into = c("o_cz", "d_cz"),
+           sep = "_",
+           convert = T) %>% 
+  pivot_wider(names_from = "race",
+              values_from = "young_adults")
+
+glimpse(race)
+```
+
+### Tidying the income dataset.
+
+***Q5 What is the unit of observation? \[2 points\]***
+
+The unit of observation for this dataset is also the origin-to-destination pair.
+
+***Q6 What variables are in the data? \[2 points\]***
+
+The variables are origin city id, origin city name, origin state, destination city name, destination city id, destination state, and parental income in quantiles.
+
+***Q7 Is the dataset tidy? Why / Why not? \[4 points\]***
+
+The dataset isn't tidy because there are more variables than observations. It can be further simplified by dividing the columns into distinct values, so that each observation is a single row.
+
+***Q8 Tidy the data_income dataset. \[8 points\]***
+
+```{r}
+income <- income %>% 
+  pivot_longer(cols = -c(o_cz, o_cz_name, o_state_name),
+              names_sep = "_",
+              names_to = c("d_cz", "d_cz_name", "d_state_name", "parental_income"),
+               values_to = "individuals") %>% 
+  pivot_wider(names_from = "parental_income",
+              values_from = "individuals")
+
+glimpse(income)
+```
+
+***BONUS QUESTION. Try to change the structure of data_income and make the “city” the unit of analysis (e.g., each row should represent an origin city in Illinois). \[5 points\] Use these two arguments in the pivot_wider function: • id_cols • values_fn***
+
+```{r}
+income %>% 
+  pivot_wider(id_cols = starts_with("o"),
+              names_from = c("d_cz", "d_cz_name", "d_state_name"),
+              values_from = c("Q1", "Q2", "Q3", "Q4", "Q5"),
+              values_fn = NULL)
+```
+
+## Part II
+
+Use migrationflows_tidy and population_tidy datasets for this part.
+
+```{r}
+migrationflows <- read.csv("data/migrationflows_tidy.csv")
+population <- read.csv("data/population_tidy.csv")
+```
+
+### Join
+
+***Q1 Join the two datasets so that all information in population_tidy dataset are kept. Remember to follow the steps discussed in class to check if the two datasets are correctly joined. How many rows do you expect the joined dataset to have? \[6 points\]***
+
+I expect to have 1392 rows if I want to keep all observations from the population dataset. There are 3 columns in common so only 3 new columns will be added to the joined dataset.
+
+```{r}
+dim(population)
+dim(migrationflows)
+
+data_joined <- left_join(population, migrationflows)
+
+dim(data_joined)
+```
+
+### Dollar-sign Syntax
+
+Use the newly created/joined dataset to answer the following. Use dollar-sign syntax and logical indexing (i.e., \[\]). DO NOT use dplyr functions. You will not receive points for using dplyr functions even if the output is correct.
+
+***Q2 What is the average percentage of migrants on the total population of a country in 2015? When calculating the percentage column, pay attention that population data are recorded in thousands while migration data are absolute numbers (see codebook at the beginning). \[6 points\]***
+
+The average percent of migrants on the total population of a country in 2015 is 13%
+
+```{r}
+data_joined$percent_migrant <- (data_joined$Tot/(data_joined$Pop*1000)*100)
+
+avg_2015 <- mean(data_joined$percent_migrant[data_joined$year == 2015])
+avg_2015
+```
+
+***Q3 Did the average percentage of immigrants on the total of population increased or decreased from 1990? \[4 points\]***
+
+The average percentage of immigrants increased from 1990 to 2015.
+
+```{r}
+avg_1990 <- mean(data_joined$percent_migrant[data_joined$year == 1990], na.rm = TRUE)
+avg_1990
+```
+
+***Q4 What is the percentage change of the average number of immigrants across all countries between 1990 and 2015? Answer this question using R objects so that your code can be reproduced even if the dataset will change in the future. \[6 points\]***
+
+```{r}
+percent_change <- ((avg_2015 - avg_1990)/avg_1990) * 100
+percent_change
+```
+
+***Q5 Which is the highest percentage of male immigrants on the total in 2010? \[4 points***\]
+
+```{r}
+#What is the highest percentage of male immigrants among/relative to the total immigrants in 2010?
+data_joined$percent_male_immigrant <- (data_joined$Male/data_joined$Tot)*100
+
+male_immigrants <- subset(data_joined, year == "2010", select=c(Country, percent_male_immigrant, year))
+
+max_immigrants <- max(male_immigrants$percent_male_immigrant, na.rm = TRUE)
+max_immigrants
+```
+
+***Q6 What is the median percentage of immigrants across all countries in 2015? \[4 points\]***
+
+```{r}
+percent_median <- median(data_joined$percent_migrant[data_joined$year == "2015"], na.rm = TRUE)
+percent_median
+```
+
+## Part III
+
+Use the migration_region dataset in this part.
+
+```{r}
+migration_region <- read.csv("data/migration_region.csv")
+```
+
+### DPLYR
+
+Use dplyr functions to answer the following questions.
+
+***Q1 What is the number of Migrant by region in 2015? \[4 points\]***
+
+```{r}
+migration_region %>% 
+  filter(year == "2015") %>% 
+  group_by(region) %>% 
+  summarise(total_migrants = sum(Migrants, na.rm = TRUE))
+```
+
+***Q2 How many countries have a share of immigrants that it’s greater than or equal to 50% of their population in 2015? \[4 points\]***
+
+```{r}
+migration_region %>% 
+  filter(Migrants >= (Pop*.5)) %>% 
+  summarise(n_countries = n())
+```
+
+***Q3 In which world regions are most of these countries located? \[4 points\]***
+
+```{r}
+migration_region %>% 
+  filter(Migrants >= (Pop*.5)) %>% 
+  group_by(region) %>% 
+  summarise(n_countries = n())
+```
+
+***Q4 How many countries have a share of immigrants greater than or equal to 50% of their population if we consider the average from 1990 to 2015? \[4 points\]***
+
+```{r}
+migration_region %>%
+  filter(year >= 1990 & year <= 2015) %>%
+  mutate(migrants_per_pop = Migrants / Pop) %>%
+  group_by(Country) %>%
+  summarise(avg_share = mean(migrants_per_pop, na.rm = TRUE)) %>%
+  filter(avg_share >= 0.5) %>%
+  summarise(n_countries = n())
+```
+
+***Q5 Which region saws the largest increase in the number of refugees from 1990 to 2015? And which region saws the largest decrease? \[6 points\]***
+
+Asia had the largest increase in the number of refugees (2140863). And Africa had the largest decrease in refugees (-1905662).
+
+```{r}
+#| message: false
+#| warning: false
+migration_region %>% 
+  select(Country, year, Refugees, region) %>% 
+  filter(year %in% c("1990", "2015")) %>% 
+  group_by(region, year) %>% 
+  summarise(yearly_refugees = sum(Refugees, na.rm = TRUE)) %>% 
+  pivot_wider(names_from = year,
+              values_from = yearly_refugees) %>% 
+  mutate(change = `2015` - `1990`) %>% 
+  arrange(desc(change))
+```
+
+***Q6 Has there been any changes in the immigration patterns by gender over time? Consider the average across all the years. \[4 points\]***
+
+Yes, the results in the table below show that for both genders the immigration patterns have been increasing over the years.
+
+```{r}
+migration_region %>% 
+  select(year, MaleMigrants, FemaleMigrants) %>% 
+  group_by(year) %>% 
+  summarise(avg_male = mean(MaleMigrants, na.rm = T), avg_female = mean(FemaleMigrants, na.rm = T))
+```
+
+### Missing values
+
+***Q7 Use the is.na functions to calculate how many missing values in the refugees, population, and migrant columns. \[4 points\]***
+
+```{r}
+sum(is.na(migration_region$Refugees))
+sum(is.na(migration_region$Pop))
+sum(is.na(migration_region$Migrants))
+```
+
+***Q8 For the column(s) with missing values, conduct some additional analysis- are those random by region, year, or country? Which regions, years, or countries have the largest amount of missing values? Can you think of an explanation of why there are these missing values? Would you classify these missing values as MCAR, MAR, or MNAR? \[6 points\]***
+
+Region with largest missing values: Territories/Other
+
+Because these are small nations and territories, it could be that they do not have the resources to either support refugees or accurately count the number of refugees or migrants in their country. The countries belonging to Territories/Other also have the lowest average population. I would then categorize these missing values sharing this common characteristic as *missing at random*.
+
+```{r}
+#total missing values from refugees (366) and migrants (15)
+migration_region %>%
+  group_by(region) %>%
+  summarise(
+    miss_refugees = sum(is.na(Refugees)),
+    miss_migrants = sum(is.na(Migrants))
+  )
+
+migration_region %>%
+  group_by(Country) %>%
+  summarise(
+    miss_refugees = sum(is.na(Refugees)),
+    miss_migrants = sum(is.na(Migrants))
+  ) %>% 
+  filter(miss_refugees >0 | miss_migrants >0)
+
+migration_region %>%
+  group_by(region, year, Country) %>%
+  summarise(
+    miss_refugees = sum(is.na(Refugees)),
+    miss_migrants = sum(is.na(Migrants))
+  ) %>% 
+  filter(miss_refugees >0 | miss_migrants >0) %>% 
+  arrange(Country)
+
+migration_region %>% 
+  group_by(region) %>% 
+  summarise(total = mean(Pop))
+```
+
+***Q9 Write a short wrap-up of what you discovered on missing values. Note any surprising findings and you think missing values might affect any analysis contacted with the dataset. \[4 points\]***
+
+The Territories/Others category has the most number of missing values, and surprisingly, the exact number of missing values per region/country are consistent each year from 1990 to 2015. Most of these are territories belonging to other nations, so it could be that these values have been either undercounted or included in their colonizer's migrant and refugee count. I do not think these missing values will have a large effect on the analyses conducted on the dataset because they are being omitted. And it will be necessary to clarify why these values were missing and omitted from the final result.
+
+## PART IV
+
+Load the data file called car_data.csv. This data contains information about cars and motorcycles listed on CarDekho.com.
+
+```{r}
+car_data <- read.csv("data/car_data.csv")
+library(hrbrthemes)
+```
+
+### Visualization
+
+***Q1 Explore and describe the distribution of the selling price using the appropriate graph. Add a vertical line indicating the mean selling price on the same graph. \[4 points\]***
+
+```{r}
+glimpse(car_data)
+
+car_data %>% 
+  ggplot(mapping = aes(selling_price)) +
+  geom_histogram(bins = 100, fill="orange") +
+  geom_vline(aes(xintercept = mean(selling_price))) +
+  theme_minimal() + 
+  ggtitle("Mean Selling Price of Cars and Motorcycles = 504127")
+  
+```
+
+***Q2 Create a correlogram among selling price, number of kilometers driven, and year the car was bought using the appropriate function in the GGally package. \[6 points}***
+
+```{r}
+library(GGally)
+
+ggpairs(car_data, columns = 2:4, ggplot2::aes(colour=owner)) + 
+  theme_bw()
+```
+
+***Q3 Plot the relationship between the selling price and year for the automatic and manual cars on the same plot. (4 points). The points on the graph should be colored based on transmission (2 points), and the tooltip should indicate the year, selling price, and transmission type. (3 points)***
+
+```{r}
+#| message: false
+#| warning: false
+library(plotly)
+
+p <- car_data %>%
+  ggplot(aes(x = year, y = selling_price, color = transmission)) +
+    geom_point(alpha=0.7) +
+  theme_classic() +
+  labs(title = "Selling price and year for automatic and manual cars")
+
+ggplotly(p)
+```
