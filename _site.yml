@@ -8,4 +8,8 @@ navbar:
       href: about.html
     - text: "Research"
       href: research.html
+output:
+  html_document:
+    theme: flatly
+    self_contained: true
 output_dir: 'docs'
